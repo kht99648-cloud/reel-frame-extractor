@@ -156,18 +156,38 @@ alert(uniqueLinks.length + " Reel links copied! Paste them into Tab 1.");
     """, language="javascript")
 
 
-# TAB 3: STORAGE GALLERY
+# TAB 3: STORAGE GALLERY & MANAGEMENT
 with tab3:
     st.subheader("Stored Videos Library")
-    st.caption("Access and replay files saved in your current session.")
+    st.caption("Access, replay, or delete files saved in your current session.")
     
     files = [f for f in os.listdir(STORAGE_DIR) if f.endswith('.mp4')]
+    
     if not files:
         st.info("No stored videos yet. Use Tab 1 to download Reels.")
     else:
+        # Clear All Button
+        if st.button("🗑️ Clear All Stored Videos", type="secondary"):
+            for file in os.listdir(STORAGE_DIR):
+                file_path = os.path.join(STORAGE_DIR, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            st.success("All stored videos have been deleted!")
+            st.rerun()
+
         st.write(f"**Stored Files ({len(files)} total):**")
         for f in files:
             file_path = os.path.join(STORAGE_DIR, f)
-            st.write(f"📄 **{f}**")
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                st.write(f"📄 **{f}**")
+            with col2:
+                # Delete Individual File
+                if st.button("Delete", key=f"del_{f}"):
+                    os.remove(file_path)
+                    st.success(f"Deleted {f}")
+                    st.rerun()
+                    
             with open(file_path, "rb") as video_file:
                 st.video(video_file.read())
