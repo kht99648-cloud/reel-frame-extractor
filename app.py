@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Folder to store downloaded videos permanently in session
+# Folder to store downloaded videos in session
 STORAGE_DIR = "stored_videos"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
@@ -22,7 +22,7 @@ st.write("Batch process Facebook Reels, auto-store files, and download everythin
 tab1, tab2, tab3 = st.tabs(["⚡ 1-Click Batch Downloader", "🔍 Grab All Profile Links", "📂 Stored Videos Library"])
 
 def process_video_extraction(video_bytes, interval):
-    """Extracts frames from video bytes and displays them in Streamlit."""
+    """Extracts activity frames from video bytes and renders them in Streamlit."""
     with tempfile.TemporaryDirectory() as temp_dir:
         input_video_path = os.path.join(temp_dir, "input_video.mp4")
         
@@ -56,14 +56,14 @@ def process_video_extraction(video_bytes, interval):
 
         cap.release()
 
-        st.write(f"**Extracted {len(saved_frames)} Frames:**")
+        st.write(f"**Extracted {len(saved_frames)} Activity Photos:**")
         cols = st.columns(3)
         for idx, (frame_rgb, timestamp) in enumerate(saved_frames):
             col = cols[idx % 3]
             col.image(frame_rgb, caption=f"Time: {timestamp}s", use_container_width=True)
 
 
-# TAB 1: BATCH PROCESSOR WITH 1-CLICK ZIP
+# TAB 1: BATCH DOWNLOADER & 1-CLICK ZIP
 with tab1:
     st.subheader("1-Click Batch Downloader")
     st.caption("Paste profile Reel links below. All videos will download and compress into 1 click!")
@@ -74,10 +74,10 @@ with tab1:
         height=150
     )
     
-    extract_frames = st.checkbox("Also extract photo frames for each video", value=False)
+    extract_frames = st.checkbox("Also extract activity frames for each video", value=False)
     extract_interval = st.slider("Photo Extraction Interval (seconds):", 0.5, 10.0, 2.0)
     
-    if st.button("🚀 Download All Videos in 1-Click", type="primary"):
+    if st.button("🚀 Process All Videos", type="primary"):
         urls = [url.strip() for url in urls_input.splitlines() if url.strip()]
         
         if not urls:
@@ -115,9 +115,9 @@ with tab1:
 
                 progress_bar.progress(idx / len(urls))
 
-            status_text.success("All videos processed and saved to storage!")
+            status_text.success("All videos downloaded and stored!")
 
-            # CREATE ZIP FILE FOR 1-CLICK DOWNLOAD
+            # PACK INTO ZIP FOR 1-CLICK DEVICE DOWNLOAD
             if downloaded_files:
                 zip_path = os.path.join(STORAGE_DIR, "all_profile_reels.zip")
                 with zipfile.ZipFile(zip_path, "w") as zipf:
@@ -135,15 +135,15 @@ with tab1:
                     )
 
 
-# TAB 2: PROFILE LINK GRABBER
+# TAB 2: PROFILE LINK COLLECTOR
 with tab2:
-    st.subheader("How to Get All Reel Links from a Profile")
+    st.subheader("How to Collect Links From Any Profile")
     st.markdown("""
-    Because Facebook hides profile videos behind dynamic scrolling, use this **3-second trick** to grab all links on any page:
+    Because Facebook blocks direct profile crawlers, use this snippet to copy all profile Reel links in 3 seconds:
 
     1. Open any Facebook Profile/Page **Reels tab** in your web browser.
-    2. Scroll down to load as many Reels as you want.
-    3. Press **F12** (or Right-Click $\rightarrow$ *Inspect*), click the **Console** tab, paste this code, and press **Enter**:
+    2. Scroll down until the videos you want are loaded on screen.
+    3. Press **F12** (Developer Tools) $\rightarrow$ switch to **Console** $\rightarrow$ paste this snippet $\rightarrow$ hit **Enter**:
     """)
     
     st.code("""
@@ -152,20 +152,20 @@ let links = Array.from(document.querySelectorAll('a'))
   .filter(href => href.includes('/reel/'));
 let uniqueLinks = [...new Set(links)];
 copy(uniqueLinks.join('\\n'));
-alert(uniqueLinks.length + " Reel links copied! Paste them directly into Tab 1.");
+alert(uniqueLinks.length + " Reel links copied! Paste them into Tab 1.");
     """, language="javascript")
 
 
 # TAB 3: STORAGE GALLERY
 with tab3:
-    st.subheader("Folder Storage Library")
-    st.caption("View and manage files stored on the server during this session.")
+    st.subheader("Stored Videos Library")
+    st.caption("Access and replay files saved in your current session.")
     
     files = [f for f in os.listdir(STORAGE_DIR) if f.endswith('.mp4')]
     if not files:
-        st.info("No stored videos yet. Use Tab 1 to download reels.")
+        st.info("No stored videos yet. Use Tab 1 to download Reels.")
     else:
-        st.write(f"**Stored Videos ({len(files)} total):**")
+        st.write(f"**Stored Files ({len(files)} total):**")
         for f in files:
             file_path = os.path.join(STORAGE_DIR, f)
             st.write(f"📄 **{f}**")
