@@ -1,6 +1,0 @@
- 
-streamlit run app.py
-
-python extract_frames.py
-
-
