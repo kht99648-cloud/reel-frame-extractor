@@ -1,19 +1,25 @@
 import os
 import tempfile
+import zipfile
 import cv2
 import imageio_ffmpeg
 import streamlit as st
 import yt_dlp
 
 st.set_page_config(
-    page_title="Facebook Profile Reel & Batch Downloader",
+    page_title="1-Click Reel Downloader & Storage Hub",
     page_icon="🎬",
     layout="centered"
 )
 
-st.title("🎬 Facebook Reel & Frame Extractor")
+# Folder to store downloaded videos permanently in session
+STORAGE_DIR = "stored_videos"
+os.makedirs(STORAGE_DIR, exist_ok=True)
 
-tab1, tab2, tab3 = st.tabs(["🌐 Batch Reel Downloader", "🔍 Link Collector Helper", "📁 Local Upload"])
+st.title("🎬 1-Click Profile Reel Hub")
+st.write("Batch process Facebook Reels, auto-store files, and download everything in 1 click.")
+
+tab1, tab2, tab3 = st.tabs(["⚡ 1-Click Batch Downloader", "🔍 Grab All Profile Links", "📂 Stored Videos Library"])
 
 def process_video_extraction(video_bytes, interval):
     """Extracts frames from video bytes and displays them in Streamlit."""
@@ -30,7 +36,6 @@ def process_video_extraction(video_bytes, interval):
 
         fps = cap.get(cv2.CAP_PROP_FPS)
         if fps == 0 or fps is None:
-            st.error("Could not read frame rate from video.")
             return
 
         frame_step = int(fps * interval)
@@ -51,77 +56,94 @@ def process_video_extraction(video_bytes, interval):
 
         cap.release()
 
-        st.write(f"**Extracted {len(saved_frames)} activity photos:**")
+        st.write(f"**Extracted {len(saved_frames)} Frames:**")
         cols = st.columns(3)
         for idx, (frame_rgb, timestamp) in enumerate(saved_frames):
             col = cols[idx % 3]
             col.image(frame_rgb, caption=f"Time: {timestamp}s", use_container_width=True)
 
 
-# TAB 1: BATCH DOWNLOAER FOR PASTED LINKS
+# TAB 1: BATCH PROCESSOR WITH 1-CLICK ZIP
 with tab1:
-    st.subheader("1. Download Multiple Profile Reels")
-    st.caption("Paste multiple public Facebook Reel URLs (one per line).")
+    st.subheader("1-Click Batch Downloader")
+    st.caption("Paste profile Reel links below. All videos will download and compress into 1 click!")
     
     urls_input = st.text_area(
-        "Facebook Reel URLs:",
+        "Paste Reel Links (One per line):",
         placeholder="https://www.facebook.com/reel/1000123456789\nhttps://www.facebook.com/reel/1000987654321",
         height=150
     )
     
-    extract_interval_fb = st.slider("Photo Extraction Interval (seconds):", 0.5, 10.0, 2.0, key="fb_slider")
+    extract_frames = st.checkbox("Also extract photo frames for each video", value=False)
+    extract_interval = st.slider("Photo Extraction Interval (seconds):", 0.5, 10.0, 2.0)
     
-    if st.button("Download All Reels", type="primary", key="fb_btn"):
+    if st.button("🚀 Download All Videos in 1-Click", type="primary"):
         urls = [url.strip() for url in urls_input.splitlines() if url.strip()]
         
         if not urls:
-            st.warning("Please enter at least one valid Facebook Reel URL.")
+            st.warning("Please paste at least one Facebook Reel URL.")
         else:
+            downloaded_files = []
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+
             for idx, url in enumerate(urls, 1):
-                st.markdown(f"--- \n### Processing Reel {idx} of {len(urls)}")
-                with st.spinner(f"Fetching Reel {idx}..."):
-                    with tempfile.TemporaryDirectory() as temp_dir:
-                        output_path = os.path.join(temp_dir, f"reel_{idx}.mp4")
-                        
-                        ydl_opts = {
-                            'format': 'bestvideo+bestaudio/best',
-                            'outtmpl': output_path,
-                            'quiet': True,
-                            'merge_output_format': 'mp4',
-                            'ffmpeg_location': imageio_ffmpeg.get_ffmpeg_exe(),
-                        }
-                        
-                        try:
-                            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                                ydl.download([url])
-                            
-                            with open(output_path, "rb") as file:
-                                video_bytes = file.read()
-                            
-                            st.video(video_bytes)
-                            st.download_button(
-                                label=f"💾 Save Reel #{idx} to Device",
-                                data=video_bytes,
-                                file_name=f"facebook_reel_{idx}.mp4",
-                                mime="video/mp4",
-                                key=f"dl_{idx}"
-                            )
-                            
-                            process_video_extraction(video_bytes, extract_interval_fb)
-                            
-                        except Exception as e:
-                            st.error(f"Failed to download URL: {url}\nEnsure it's a public Reel.\nError: {e}")
+                status_text.text(f"Downloading Video {idx} of {len(urls)}...")
+                file_name = f"reel_{idx}.mp4"
+                save_path = os.path.join(STORAGE_DIR, file_name)
+
+                ydl_opts = {
+                    'format': 'bestvideo+bestaudio/best',
+                    'outtmpl': save_path,
+                    'quiet': True,
+                    'merge_output_format': 'mp4',
+                    'ffmpeg_location': imageio_ffmpeg.get_ffmpeg_exe(),
+                }
+
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([url])
+                    
+                    downloaded_files.append((file_name, save_path))
+                    
+                    if extract_frames:
+                        with open(save_path, "rb") as f:
+                            process_video_extraction(f.read(), extract_interval)
+
+                except Exception as e:
+                    st.error(f"Failed link {idx}: {url} | Error: {e}")
+
+                progress_bar.progress(idx / len(urls))
+
+            status_text.success("All videos processed and saved to storage!")
+
+            # CREATE ZIP FILE FOR 1-CLICK DOWNLOAD
+            if downloaded_files:
+                zip_path = os.path.join(STORAGE_DIR, "all_profile_reels.zip")
+                with zipfile.ZipFile(zip_path, "w") as zipf:
+                    for filename, filepath in downloaded_files:
+                        zipf.write(filepath, arcname=filename)
+
+                with open(zip_path, "rb") as zf:
+                    st.download_button(
+                        label="📦 ONE-CLICK DOWNLOAD ALL VIDEOS (.ZIP)",
+                        data=zf.read(),
+                        file_name="all_profile_reels.zip",
+                        mime="application/zip",
+                        type="primary",
+                        use_container_width=True
+                    )
 
 
-# TAB 2: INSTRUCTIONS TO COPY PROFILE LINKS IN BULK
+# TAB 2: PROFILE LINK GRABBER
 with tab2:
-    st.subheader("2. How to Grab All Reel Links From Any Profile")
-    st.info("Because Facebook blocks profile scrapers, follow these 3 steps to grab all links from a profile in 30 seconds:")
-    
+    st.subheader("How to Get All Reel Links from a Profile")
     st.markdown("""
-    1. Open the Facebook Page/Profile **Reels** tab in your web browser.
-    2. Scroll down until all the Reels you want to download are loaded on the screen.
-    3. Press **F12** (or Right-Click → *Inspect*) to open Developer Console, switch to the **Console** tab, paste this JavaScript snippet, and press **Enter**:
+    Because Facebook hides profile videos behind dynamic scrolling, use this **3-second trick** to grab all links on any page:
+
+    1. Open any Facebook Profile/Page **Reels tab** in your web browser.
+    2. Scroll down to load as many Reels as you want.
+    3. Press **F12** (or Right-Click $\rightarrow$ *Inspect*), click the **Console** tab, paste this code, and press **Enter**:
     """)
     
     st.code("""
@@ -129,24 +151,23 @@ let links = Array.from(document.querySelectorAll('a'))
   .map(a => a.href)
   .filter(href => href.includes('/reel/'));
 let uniqueLinks = [...new Set(links)];
-console.log(uniqueLinks.join('\\n'));
 copy(uniqueLinks.join('\\n'));
-alert(uniqueLinks.length + " Reel links copied to your clipboard!");
+alert(uniqueLinks.length + " Reel links copied! Paste them directly into Tab 1.");
     """, language="javascript")
-    
-    st.markdown("4. Switch back to **Tab 1** of this app and **Paste** into the text box!")
 
 
-# TAB 3: LOCAL VIDEO UPLOAD
+# TAB 3: STORAGE GALLERY
 with tab3:
-    st.subheader("3. Upload Local Videos")
-    uploaded_files = st.file_uploader("Choose video files", type=["mp4", "mov", "avi", "mkv"], accept_multiple_files=True)
-    extract_interval_local = st.slider("Photo Extraction Interval (seconds):", 0.5, 10.0, 2.0, key="local_slider")
-
-    if uploaded_files:
-        if st.button("Process Uploaded Files", type="primary", key="local_btn"):
-            for idx, uploaded_file in enumerate(uploaded_files, 1):
-                st.markdown(f"--- \n### Video {idx}: {uploaded_file.name}")
-                video_bytes = uploaded_file.read()
-                st.video(video_bytes)
-                process_video_extraction(video_bytes, extract_interval_local)
+    st.subheader("Folder Storage Library")
+    st.caption("View and manage files stored on the server during this session.")
+    
+    files = [f for f in os.listdir(STORAGE_DIR) if f.endswith('.mp4')]
+    if not files:
+        st.info("No stored videos yet. Use Tab 1 to download reels.")
+    else:
+        st.write(f"**Stored Videos ({len(files)} total):**")
+        for f in files:
+            file_path = os.path.join(STORAGE_DIR, f)
+            st.write(f"📄 **{f}**")
+            with open(file_path, "rb") as video_file:
+                st.video(video_file.read())
