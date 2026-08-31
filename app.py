@@ -5,7 +5,7 @@ import streamlit as st
 import yt_dlp
 
 st.set_page_config(
-    page_title="1-Click Reel Downloader & Storage Hub",
+    page_title="K1M H3NG | Reel Downloader & Storage Hub",
     page_icon="🎬",
     layout="centered"
 )
@@ -14,6 +14,8 @@ st.set_page_config(
 STORAGE_DIR = "stored_videos"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
+# Custom Header Branding
+st.markdown("<h3 style='text-align: center; color: #FF4B4B;'>🔥 K1M H3NG 🔥</h3>", unsafe_allow_html=True)
 st.title("🎬 1-Click Profile Reel Hub")
 st.write("Batch process Facebook Reels, auto-store files, and download everything in 1 click.")
 
@@ -69,7 +71,7 @@ with tab1:
 
             # PACK MP4s INTO 1-CLICK ZIP
             if downloaded_files:
-                zip_path = os.path.join(STORAGE_DIR, "all_profile_reels.zip")
+                zip_path = os.path.join(STORAGE_DIR, "K1M_H3NG_profile_reels.zip")
                 with zipfile.ZipFile(zip_path, "w") as zipf:
                     for filename, filepath in downloaded_files:
                         zipf.write(filepath, arcname=filename)
@@ -78,7 +80,7 @@ with tab1:
                     st.download_button(
                         label="📦 ONE-CLICK DOWNLOAD ALL VIDEOS (.ZIP)",
                         data=zf.read(),
-                        file_name="all_profile_reels.zip",
+                        file_name="K1M_H3NG_profile_reels.zip",
                         mime="application/zip",
                         type="primary",
                         use_container_width=True
